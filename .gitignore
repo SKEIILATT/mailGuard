@@ -4,3 +4,5 @@ token.json
 .venv/
 __pycache__/
 *.pyc
+datos.ipynb
+senders.csv
