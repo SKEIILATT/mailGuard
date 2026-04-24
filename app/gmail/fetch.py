@@ -1,29 +1,5 @@
-import os
 import time
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
-
-def authenticate():
-    creds = None
-
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-
-    return creds
 
 def fetch_all_message_ids(service):
     LABELS = [
@@ -60,6 +36,7 @@ def fetch_all_message_ids(service):
 
     print(f"\nTotal: {len(all_ids)} correos unicos encontrados")
     return list(all_ids)
+
 
 def fetch_emails_batch(service, ids):
     emails = []
@@ -111,3 +88,23 @@ def fetch_emails_batch(service, ids):
 
     print(f"\nDetalles obtenidos de {len(emails)} correos")
     return emails
+
+def get_senders(emails):
+    senders = {}
+
+    for email in emails:
+        sender = email['from']
+        email_id = email['id']
+
+        if sender in senders:
+            senders[sender]['count'] += 1
+            senders[sender]['ids'].append(email_id)
+        else:
+            senders[sender] = {
+                'sender': sender,
+                'count': 1,
+                'ids': [email_id],
+                'example_subject': email['subject']
+            }
+
+    return sorted(senders.values(), key=lambda x: x['count'], reverse=True)
