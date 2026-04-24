@@ -1,5 +1,10 @@
 import time
 
+from app.gmail.retry import execute_with_retry
+
+LIST_PAGE_SIZE = 500
+FETCH_BATCH_SIZE = 50
+
 
 def fetch_all_message_ids(service):
     LABELS = [
@@ -19,12 +24,16 @@ def fetch_all_message_ids(service):
         while True:
             params = {
                 'userId': 'me',
-                'labelIds': [label]
+                'labelIds': [label],
+                'maxResults': LIST_PAGE_SIZE,
             }
             if page_token:
                 params['pageToken'] = page_token
 
-            results = service.users().messages().list(**params).execute()
+            results = execute_with_retry(
+                lambda: service.users().messages().list(**params).execute(),
+                description=f'Lectura de correos en {label}',
+            )
             messages = results.get('messages', [])
             all_ids.update([m['id'] for m in messages])
 
@@ -40,7 +49,7 @@ def fetch_all_message_ids(service):
 
 def fetch_emails_batch(service, ids):
     emails = []
-    chunks = [ids[i:i+100] for i in range(0, len(ids), 100)]
+    chunks = [ids[i:i+FETCH_BATCH_SIZE] for i in range(0, len(ids), FETCH_BATCH_SIZE)]
 
     print(f"Obteniendo detalles en {len(chunks)} lotes...\n")
 
@@ -82,7 +91,10 @@ def fetch_emails_batch(service, ids):
                 callback=make_callback(msg_id)
             )
 
-        batch.execute()
+        execute_with_retry(
+            lambda: batch.execute(),
+            description='Lectura de metadatos de correos',
+        )
         emails.extend(results)
         time.sleep(0.5)
 

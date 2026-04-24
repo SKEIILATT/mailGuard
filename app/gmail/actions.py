@@ -1,15 +1,20 @@
 import time
 
+from app.gmail.retry import execute_with_retry
+
 def delete_emails(service, ids):
     chunks = [ids[i:i+100] for i in range(0, len(ids), 100)]
     total_deleted = 0
 
     for i, chunk in enumerate(chunks):
         print(f"   Eliminando lote {i+1}/{len(chunks)}...", end='\r')
-        service.users().messages().batchDelete(
-            userId='me',
-            body={'ids': chunk}
-        ).execute()
+        execute_with_retry(
+            lambda: service.users().messages().batchDelete(
+                userId='me',
+                body={'ids': chunk}
+            ).execute(),
+            description='Eliminacion de correos',
+        )
         total_deleted += len(chunk)
         time.sleep(1)
 
@@ -22,13 +27,16 @@ def archive_emails(service, ids):
 
     for i, chunk in enumerate(chunks):
         print(f"   Archivando lote {i+1}/{len(chunks)}...", end='\r')
-        service.users().messages().batchModify(
-            userId='me',
-            body={
-                'ids': chunk,
-                'removeLabelIds': ['INBOX']
-            }
-        ).execute()
+        execute_with_retry(
+            lambda: service.users().messages().batchModify(
+                userId='me',
+                body={
+                    'ids': chunk,
+                    'removeLabelIds': ['INBOX']
+                }
+            ).execute(),
+            description='Archivado de correos',
+        )
         total_archived += len(chunk)
         time.sleep(1)
 
